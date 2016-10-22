@@ -1,0 +1,14 @@
+{
+  "name": "data-visualization",
+  "version": "1.0.0",
+  "description": "Data visualization task for Point Inside",
+  "main": "main.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Wendy Hsu",
+  "license": "ISC",
+  "dependencies": {
+    "chart.js": "^2.3.0"
+  }
+}
