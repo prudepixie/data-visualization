@@ -3,48 +3,110 @@ $( document ).ready(function() {
       , lastMonth
       , lastWeek
       , lastWeekData
+      , lastMonthData
+      , startDate
+      , endDate
+      , startEndData
+      , items
+
+    $('.dropdown')
+      .dropdown({
+        onChange: function(value) {
+          if (value == 0) {
+            $('.betweenDateChart').removeClass('visible').addClass('hidden');
+            $('.form').removeClass('visible').addClass('hidden');
+            $('.monthChart').removeClass('visible').addClass('hidden');
+            $('.weekChart').removeClass('hidden').addClass('visible');
+          } else if (value == 1) {
+            $('.betweenDateChart').removeClass('visible').addClass('hidden');
+            $('.form').removeClass('visible').addClass('hidden');
+            $('.weekChart').removeClass('visible').addClass('hidden');
+            $('.monthChart').removeClass('hidden').addClass('visible');
+          } else if (value == 2) {
+            $('.form').removeClass('hidden').addClass('visible');
+            $('.monthChart').removeClass('visible').addClass('hidden');
+            $('.weekChart').removeClass('visible').addClass('hidden');
+          }
+        }
+    });
 
     function getData() {
       var url = "https://gist.githubusercontent.com/evanjacobs/c150c0375030dc4de65e9b95784dc894/raw/35c5f455b147703db3989df0cb90f5781c3b312f/usage_data.json";
       $.getJSON( url, {format: "json"})
       .done(function( data ) {
-        var items = [];
+        items = data;
+
         addDateAttributeToItems(data);
-        lastWeekData = getLastWeekData(data)
-        console.log("LAST WEEK SHITTT");
-        console.log(lastWeekData);
-        getDayOfWeek(lastWeekData);
-        var lastMonthData = getLastMonthData(data)
-        console.log("LAST MONTH SHITTT");
-        console.log(lastMonthData);
+        lastWeekData = getLastWeekData(data);
+        firstDayOfWeek = getLastWeekData(data).slice(-1)[0].date;
+        lastDayOfWeek = getLastWeekData(data)[0].date;
+        $('.startWeekDay').text(moment(firstDayOfWeek).format('MMMM Do YYYY'));
+        $('.endWeekDay').text(moment(lastDayOfWeek).format('MMMM Do YYYY'));
+
+        lastMonthData = getLastMonthData(data);
+        monthName = moment(getLastMonthData(data)[0].date).format("MMMM");
+        $('.monthName').text(monthName);
+
+        setDates();
         setChart();
-        $.each( data, function(i, item) {
-          var date = data[i].date;
-          var users = data[i].users;
-          var searches = data[i].searches;
-          items.push( "<li>" + date + " "+ users + " "+ searches+ "</li>" );
-        })
-        $( "<ul/>", {
-          "class": "my-new-list",
-          html: items.join( "" )
-        }).appendTo( "body" );
       });
     };
     getData();
 
+
+    function setDates() {
+      $('#rangestart').calendar({
+        type: 'date',
+        minDate: new Date('2013-11-28'),
+        maxDate: new Date('2016-08-24'),
+        endCalendar: $('#rangeend'),
+        onChange: function(date){
+          startDate = date
+          if(startDate && endDate){
+            getDataBetweenTwoDates()
+            setChart()
+            $('.betweenDateChart').removeClass('hidden').addClass('visible');
+            $('.startDate').text(moment(startDate).format('MMMM Do YYYY'));
+            $('.endDate').text(moment(endDate).format('MMMM Do YYYY'));
+          }
+        }
+      })
+
+      $('#rangeend').calendar({
+        type: 'date',
+        maxDate: new Date('2016-08-25'),
+        startCalendar: $('#rangestart'),
+        onChange: function(date){
+          endDate = date;
+          if(startDate && endDate){
+            getDataBetweenTwoDates();
+            setChart();
+            $('.betweenDateChart').removeClass('hidden').addClass('visible');
+            $('.startDate').text(moment(startDate).format('MMMM Do YYYY'));
+            $('.endDate').text(moment(endDate).format('MMMM Do YYYY'));
+          }
+        }
+      });
+    }
+
     function setChart() {
-      console.log("LAST WEEEEEK");
-      console.log(lastWeekData);
-      var data = {
-        labels: ["January", "February", "March", "April", "May", "June", "July"],
+      var weekDays = getDayOfWeek(lastWeekData);
+      var recentWeekSearches = _.map(lastWeekData, function(item) {
+        return item.searches
+      })
+      var recentWeekUsers = _.map(lastWeekData, function(item) {
+        return item.users
+      })
+
+      var recentWeekData = {
+        labels: weekDays,
         datasets: [
           {
-            label: "Latest Week",
+            label: "Searches",
             fill: false,
             lineTension: 0.1,
-            backgroundColor: "rgba(75,192,192,0.4)",
+            backgroundColor: "rgba(75,192,192,1)",
             borderColor: "rgba(75,192,192,1)",
-            borderCapStyle: 'butt',
             borderDash: [],
             borderDashOffset: 0.0,
             borderJoinStyle: 'miter',
@@ -57,26 +119,179 @@ $( document ).ready(function() {
             pointHoverBorderWidth: 2,
             pointRadius: 1,
             pointHitRadius: 10,
-            data: [65, 59, 80, 81, 56, 55, 40],
+            data: recentWeekSearches,
+            spanGaps: false,
+          },
+          {
+            label: "Users",
+            fill: false,
+            lineTension: 0.1,
+            backgroundColor: "rgba(193, 27, 174,1)",
+            borderColor: "rgba(193, 27, 174,1)",
+            borderDash: [],
+            borderDashOffset: 0.0,
+            borderJoinStyle: 'miter',
+            pointBorderColor: "rgba(193, 27, 174,1)",
+            pointBackgroundColor: "#fff",
+            pointBorderWidth: 1,
+            pointHoverRadius: 5,
+            pointHoverBackgroundColor: "rgba(193, 27, 174,1)",
+            pointHoverBorderColor: "rgba(220,220,220,1)",
+            pointHoverBorderWidth: 2,
+            pointRadius: 1,
+            pointHitRadius: 10,
+            data: recentWeekUsers,
             spanGaps: false,
           }
         ]
       };
-      var ctx = document.getElementById("weeklyChart");
+      var ctx = document.getElementById("recentWeekChart");
       var weeklyChart = new Chart(ctx, {
         type: 'line',
-        data: data
+        data: recentWeekData
+      });
+
+      var daysOfMonth = getDayOfMonth(lastMonthData);
+      var recentMonthSearches = _.map(lastMonthData, function(item) {
+        return item.searches
+      })
+      var recentMonthUsers = _.map(lastMonthData, function(item) {
+        return item.users
+      })
+
+      var recentMonthData = {
+        labels: daysOfMonth,
+        datasets: [
+          {
+            label: "Searches",
+            fill: false,
+            lineTension: 0.1,
+            backgroundColor: "rgba(75,192,192,1)",
+            borderColor: "rgba(75,192,192,1)",
+            borderDash: [],
+            borderDashOffset: 0.0,
+            borderJoinStyle: 'miter',
+            pointBorderColor: "rgba(75,192,192,1)",
+            pointBackgroundColor: "#fff",
+            pointBorderWidth: 1,
+            pointHoverRadius: 5,
+            pointHoverBackgroundColor: "rgba(75,192,192,1)",
+            pointHoverBorderColor: "rgba(220,220,220,1)",
+            pointHoverBorderWidth: 2,
+            pointRadius: 1,
+            pointHitRadius: 10,
+            data: recentMonthSearches,
+            spanGaps: false,
+          },
+          {
+            label: "Users",
+            fill: false,
+            lineTension: 0.1,
+            backgroundColor: "rgba(193, 27, 174,1)",
+            borderColor: "rgba(193, 27, 174,1)",
+            borderDash: [],
+            borderDashOffset: 0.0,
+            borderJoinStyle: 'miter',
+            pointBorderColor: "rgba(193, 27, 174,1)",
+            pointBackgroundColor: "#fff",
+            pointBorderWidth: 1,
+            pointHoverRadius: 5,
+            pointHoverBackgroundColor: "rgba(193, 27, 174,1)",
+            pointHoverBorderColor: "rgba(220,220,220,1)",
+            pointHoverBorderWidth: 2,
+            pointRadius: 1,
+            pointHitRadius: 10,
+            data: recentMonthUsers,
+            spanGaps: false,
+          }
+        ]
+      }
+      var ctx = document.getElementById("recentMonthChart");
+      var monthlyChart = new Chart(ctx, {
+        type: 'line',
+        data: recentMonthData
+      });
+
+      var startEndDates = _.map(startEndData, function(item) {
+        return moment(item.date).format("M/D/YY")
+      })
+      var startEndSearches = _.map(startEndData, function(item) {
+        return item.searches
+      })
+      var startEndUsers = _.map(startEndData, function(item) {
+        return item.users
+      })
+
+      var betweenDateData = {
+        labels: startEndDates,
+        datasets: [
+          {
+            label: "Searches",
+            fill: false,
+            lineTension: 0.1,
+            backgroundColor: "rgba(75,192,192,1)",
+            borderColor: "rgba(75,192,192,1)",
+            borderDash: [],
+            borderDashOffset: 0.0,
+            borderJoinStyle: 'miter',
+            pointBorderColor: "rgba(75,192,192,1)",
+            pointBackgroundColor: "#fff",
+            pointBorderWidth: 1,
+            pointHoverRadius: 5,
+            pointHoverBackgroundColor: "rgba(75,192,192,1)",
+            pointHoverBorderColor: "rgba(220,220,220,1)",
+            pointHoverBorderWidth: 2,
+            pointRadius: 1,
+            pointHitRadius: 10,
+            data: startEndSearches,
+            spanGaps: false,
+          },
+          {
+            label: "Users",
+            fill: false,
+            lineTension: 0.1,
+            backgroundColor: "rgba(193, 27, 174,1)",
+            borderColor: "rgba(193, 27, 174,1)",
+            borderDash: [],
+            borderDashOffset: 0.0,
+            borderJoinStyle: 'miter',
+            pointBorderColor: "rgba(193, 27, 174,1)",
+            pointBackgroundColor: "#fff",
+            pointBorderWidth: 1,
+            pointHoverRadius: 5,
+            pointHoverBackgroundColor: "rgba(193, 27, 174,1)",
+            pointHoverBorderColor: "rgba(220,220,220,1)",
+            pointHoverBorderWidth: 2,
+            pointRadius: 1,
+            pointHitRadius: 10,
+            data: startEndUsers,
+            spanGaps: false,
+          }
+        ]
+      }
+      var ctx = document.getElementById("betweenDateChart");
+      var betweenDateChart = new Chart(ctx, {
+        type: 'line',
+        data: betweenDateData
       });
     }
 
     function getDayOfWeek(items) {
-      console.log("Week Day");
       var weekDays = [];
-      weekDays = items.reverse().map(function(item){
+      weekDays = items.slice().reverse().map(function(item){
         return moment(item.date).format("dddd")
       });
-      console.log(weekDays);
+      return weekDays;
     }
+
+    function getDayOfMonth(items) {
+      var monthDays = [];
+      monthDays = items.slice().reverse().map(function(item){
+        return moment(item.date).format("D")
+      });
+      return monthDays;
+    }
+
     function addDateAttributeToItems(items) {
       items.forEach(function(item){
         item.week = moment(item.date, "YYYY-MM-DD").week()
@@ -85,7 +300,7 @@ $( document ).ready(function() {
       });
       lastYear = _.last( _.sortBy(items.map(function(item){
         return item.year
-      }).reverse(), function(sortingItem){
+      }).slice().reverse(), function(sortingItem){
         return sortingItem.year
       }));
     };
@@ -93,7 +308,7 @@ $( document ).ready(function() {
     function getLastWeekData(items){
       lastWeek = _.last( _.sortBy(items.map(function(item){
         return item.week
-      }).reverse(), function(sortingItem){
+      }).slice().reverse(), function(sortingItem){
         return sortingItem.week
       }))
 
@@ -107,7 +322,7 @@ $( document ).ready(function() {
     function getLastMonthData(items){
       lastMonth = _.last(_.sortBy(items.map(function(item){
         return item.month
-      }).reverse(), function(sortingItem){
+      }).slice().reverse(), function(sortingItem){
         return sortingItem.month
       }))
 
@@ -118,5 +333,9 @@ $( document ).ready(function() {
       return filteredItems
     }
 
-
+    function getDataBetweenTwoDates() {
+      startEndData = items.slice().reverse().filter(function(item){
+        return moment(item.date, "YYYY-MM-DD").isBetween(startDate, endDate, null, '[]')
+      })
+    }
 });

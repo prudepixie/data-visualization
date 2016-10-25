@@ -95,9 +95,16 @@ textarea {
    Author's custom styles
    ========================================================================== */
 
+.container {
+  text-align: center;
+  margin-top: 20px;
+}
 
-
-
+label {
+  display: block;
+  padding-top: 30px;
+  padding-bottom: 13px;
+}
 
 
 
